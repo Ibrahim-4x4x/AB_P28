@@ -508,9 +508,7 @@
     });
     
     // ========== RESULT ICON / BUTTON BEHAVIOR: LOCK AFTER SHOWING SCORES ==========
-    // We will modify the "Auto-Correct & Score" button: after displaying scores, if any answer exists, lock page.
-    const originalCheckBtn = document.getElementById('checkAllBtn');
-    // Keep answer keys same as original but attach extra lock after showing score
+    
     
     // ----- SCORING LOGIC (preserved from original) -----
     const listeningKey = { q1: 'a', q2: 'a', q3: 'b', q4: 'a', q5: 'a', q6: 'a' };
