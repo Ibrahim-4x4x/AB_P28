@@ -339,7 +339,6 @@
         <input type="password" id="passwordInput" placeholder="Enter password" autocomplete="off">
         <button id="unlockBtn">Unlock & Start</button>
         <div id="passwordError" class="error-msg"></div>
-        <div class="hint-text">💡 Hint: The password is <strong>worksheet2025</strong></div>
     </div>
 </div>
 
