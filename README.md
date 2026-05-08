@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!--DOCTYPE html-->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -414,7 +414,7 @@
 <script>
     // ======================== PASSWORD & LOCK MECHANISM ========================
     // Teacher password (change as needed)
-    const TEACHER_PASSWORD = "teacher123";   // default secure word
+    const TEACHER_PASSWORD = "2026";   // default secure word
     
     let isLocked = false;
     let lockTriggeredByResult = false;    // flag to know if result button caused lock
