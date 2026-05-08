@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!--DOCTYPE html-->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -428,7 +428,7 @@
 <script>
     // PASSWORD AND ONE-TIME ACCESS LOGIC
     (function() {
-        const CORRECT_PASSWORD = "worksheet2025";
+        const CORRECT_PASSWORD = "2026";
         const STORAGE_KEY = "worksheet_unlocked_v1";
 
         // Check if already unlocked in sessionStorage (avoid password re-entry on refresh)
