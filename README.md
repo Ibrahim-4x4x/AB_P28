@@ -1,9 +1,9 @@
-<!--DOCTYPE html-->
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>🔒 Secure Worksheet: Anti-Leave + Password Block</title>
+    <title>🔒 Secure Worksheet: Anti-Leave + Password Block (Enhanced)</title>
     <style>
         * {
             margin: 0;
@@ -325,11 +325,11 @@
 </head>
 <body>
 
-<!-- LOCK OVERLAY (password wall) -->
+<!-- LOCK OVERLAY (password wall) - enhanced with features from best Exam General -->
 <div id="lockOverlay" class="lock-overlay">
     <div class="lock-card">
         <h2>🔒 Activity Locked</h2>
-        <p>⚠️ You left the page, minimized the tab, or clicked "Result" after finishing.<br>Enter the teacher password to continue.</p>
+        <p>⚠️ You left the page, minimized the tab, completed the activity, or the window lost focus.<br>Enter teacher password to continue.</p>
         <input type="password" id="passwordInput" placeholder="Enter password" autocomplete="off">
         <button id="unlockBtn">Unlock Worksheet</button>
         <div id="lockErrorMsg" class="error-msg"></div>
@@ -338,7 +338,7 @@
 
 <div class="worksheet-container">
     <h1>📝 as ... as / not as ... as</h1>
-    <div class="sub">Comparisons — listen, rewrite & compare | 🔐 Auto-lock on page leave/minimize + Result lock</div>
+    <div class="sub">Comparisons — listen, rewrite & compare | 🔐 Auto-lock on page leave/minimize + Result lock + Window blur + Visibility API</div>
 
     <!-- ACTIVITY 1 -->
     <div class="activity-card">
@@ -412,19 +412,118 @@
 </div>
 
 <script>
-    const TEACHER_SECRET = "0101"; 
-
-function startExam() {
-    // Check if already locked before starting
-    if (localStorage.getItem("unit7_status") === "locked") {
-        showLockScreen();
-        return;
+    // ======================== PASSWORD & LOCK MECHANISM (ENHANCED with features from best Exam General) ========================
+    // Teacher password (as per best Exam General style, but keeping original theme)
+    const TEACHER_PASSWORD = "teacher123";   // default secure word (can be changed)
+    
+    let isLocked = false;
+    let lockTriggeredByResult = false;
+    let resultWasClicked = false;
+    
+    const lockOverlay = document.getElementById('lockOverlay');
+    const passwordInput = document.getElementById('passwordInput');
+    const unlockBtn = document.getElementById('unlockBtn');
+    const lockErrorMsg = document.getElementById('lockErrorMsg');
+    
+    // Function to lock the page (show password wall, blur worksheet)
+    function lockPage(reason = "generic") {
+        if (isLocked) return;
+        isLocked = true;
+        document.body.classList.add('locked');
+        lockOverlay.style.display = 'flex';
+        console.log(`🔒 Locked due to: ${reason}`);
+        lockErrorMsg.innerText = '';
+        passwordInput.value = '';
+        // Additionally, store lock state in localStorage to survive reloads (as per best Exam General)
+        localStorage.setItem("worksheet_status", "locked");
     }
-    document.getElementById('start-area').style.display = 'none';
-    document.getElementById('exam-content').style.display = 'block';
-}
-
-    // ----- SCORING LOGIC (preserved from original) -----
+    
+    // Unlock the page
+    function unlockPage() {
+        if (!isLocked) return;
+        const entered = passwordInput.value.trim();
+        if (entered === TEACHER_PASSWORD) {
+            isLocked = false;
+            lockTriggeredByResult = false;
+            resultWasClicked = false;
+            document.body.classList.remove('locked');
+            lockOverlay.style.display = 'none';
+            lockErrorMsg.innerText = '';
+            localStorage.removeItem("worksheet_status");
+        } else {
+            lockErrorMsg.innerText = '❌ Incorrect password. Access denied.';
+            passwordInput.value = '';
+        }
+    }
+    
+    unlockBtn.addEventListener('click', unlockPage);
+    passwordInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') unlockPage();
+    });
+    
+    // ========== Enhanced Security: PAGE LEAVE / MINIMIZE / WINDOW BLUR & VISIBILITY from best Exam General ==========
+    // 1) Visibility API: if student minimizes tab OR switches to another tab → lock immediately
+    // 2) Window blur: detect if window loses focus (clicking another app, popup, etc.) → lock
+    // 3) beforeunload detection + sessionStorage to preserve lock on reload
+    
+    let hasAnswersBeforeLeave = false;
+    function checkAnyAnswer() {
+        // check radios
+        for (let i = 1; i <= 6; i++) {
+            let radios = document.querySelectorAll(`input[name="q${i}"]`);
+            for (let r of radios) if (r.checked) return true;
+        }
+        const textInputs = document.querySelectorAll('input[type="text"], input.field-input');
+        for (let inp of textInputs) if (inp.value.trim() !== "") return true;
+        return false;
+    }
+    
+    function updateAnswerFlag() { hasAnswersBeforeLeave = checkAnyAnswer(); }
+    document.addEventListener('change', updateAnswerFlag);
+    document.addEventListener('input', updateAnswerFlag);
+    
+    // Security: visibility change (tab minimize/switch)
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden && !isLocked && hasAnswersBeforeLeave) {
+            lockPage('tab minimize / switch (visibility API)');
+            // Optional alert behavior from best Exam General
+            alert("Activity Locked: You left the page during the exam.");
+        }
+    });
+    
+    // Security: window loses focus (blur)
+    window.addEventListener("blur", function() {
+        if (!isLocked && hasAnswersBeforeLeave && document.getElementById('checkAllBtn')) {
+            lockPage('window lost focus (blur event)');
+            alert("Activity Locked: Window lost focus.");
+        }
+    });
+    
+    // beforeunload: set pending lock flag for reload/close
+    window.addEventListener('beforeunload', function(e) {
+        if (hasAnswersBeforeLeave && !isLocked) {
+            sessionStorage.setItem('pendingLockOnReload', 'true');
+        }
+    });
+    
+    // On page load, check if we need to lock due to previous reload / localStorage locked state
+    window.addEventListener('load', function() {
+        updateAnswerFlag();
+        // Check localStorage lock status from previous lock (best exam general feature)
+        if (localStorage.getItem('worksheet_status') === 'locked') {
+            if (!isLocked) lockPage('persisted lock from localStorage');
+        }
+        if (sessionStorage.getItem('pendingLockOnReload') === 'true') {
+            sessionStorage.removeItem('pendingLockOnReload');
+            if (!isLocked && hasAnswersBeforeLeave) {
+                lockPage('page reload/leave detected');
+            }
+        }
+    });
+    
+    // ========== RESULT ICON / BUTTON BEHAVIOR: LOCK AFTER SHOWING SCORES ==========
+    // Scoring logic preserved from original worksheet
+    
     const listeningKey = { q1: 'a', q2: 'a', q3: 'b', q4: 'a', q5: 'a', q6: 'a' };
     const rewriteExpected = [
         { id: 'rewrite2', patterns: [/you are as old as your friend/i, /you're as old as your friend/i, /you are as old as your friend\.?$/i] },
@@ -464,55 +563,76 @@ function startExam() {
         });
         let total = listeningScore + rewriteScore + gabScore;
         let totalMax = 15;
-        // update feedback UI
-        const listeningDiv = document.getElementById('listeningFeedback');
-        listeningDiv.innerHTML = `🎧 Listening: ${listeningScore}/6 ${listeningScore===6 ? '✅' : ''}`;
-        const rewriteDiv = document.getElementById('rewriteFeedback');
-        rewriteDiv.innerHTML = `✍️ Rewrite: ${rewriteScore}/4`;
-        const gabDiv = document.getElementById('gabrielFeedback');
-        gabDiv.innerHTML = `📊 Gabriel & Omar: ${gabScore}/5`;
+        document.getElementById('listeningFeedback').innerHTML = `🎧 Listening: ${listeningScore}/6 ${listeningScore===6 ? '✅' : ''}`;
+        document.getElementById('rewriteFeedback').innerHTML = `✍️ Rewrite: ${rewriteScore}/4`;
+        document.getElementById('gabrielFeedback').innerHTML = `📊 Gabriel & Omar: ${gabScore}/5`;
         document.getElementById('totalScoreArea').innerHTML = `📊 Total score: ${total} / ${totalMax}  (Listening: ${listeningScore}/6 | Rewrite: ${rewriteScore}/4 | Compare: ${gabScore}/5)`;
         return total;
     }
     
-    // Function to handle the locking state
-    function lockActivity() {
-        localStorage.setItem("unit7_status", "locked");
-        showLockScreen();
+    // new version: show score AND lock after if answers exist (Result lock as per best exam general)
+    function onResultClick() {
+        if (isLocked) return;
+        computeAndDisplayScores();
+        if (hasAnswersBeforeLeave || checkAnyAnswer()) {
+            lockTriggeredByResult = true;
+            lockPage('Result button clicked - activity completed');
+            alert("Activity Completed and Locked. Please ask teacher to unlock.");
+        }
     }
-
-    function showLockScreen() {
-        document.getElementById('exam-content').style.display = 'none';
-        document.getElementById('start-area').style.display = 'none';
-        document.getElementById('lock-screen').style.display = 'block';
-    }
-
-    function unlockExam() {
-        if (document.getElementById('teacher-password').value === TEACHER_SECRET) {
-            localStorage.removeItem("unit7_status");
-            location.reload();
+    
+    // Replace original click with new locking result button
+    const freshCheckBtn = document.getElementById('checkAllBtn');
+    // Clone to avoid multiple listeners
+    const newBtn = freshCheckBtn.cloneNode(true);
+    freshCheckBtn.parentNode.replaceChild(newBtn, freshCheckBtn);
+    newBtn.id = 'checkAllBtn';
+    newBtn.addEventListener('click', onResultClick);
+    
+    // Reset button: clear fields and unlock if possible (but remain locked state requires password)
+    function resetAllFields() {
+        for (let i = 1; i <= 6; i++) {
+            document.querySelectorAll(`input[name="q${i}"]`).forEach(r => r.checked = false);
+        }
+        ['rewrite2','rewrite3','rewrite4','rewrite5'].forEach(id => document.getElementById(id).value = '');
+        ['gabTall','gabSports','gabMaths','gabHard','gabBad'].forEach(id => document.getElementById(id).value = '');
+        ['friendOld','friendFriendly','friendArt','friendLang','friendEasy','friendConfident'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('listeningFeedback').innerHTML = '';
+        document.getElementById('rewriteFeedback').innerHTML = '';
+        document.getElementById('gabrielFeedback').innerHTML = '';
+        document.getElementById('sampleFriendsDiv').innerHTML = '';
+        document.getElementById('totalScoreArea').innerHTML = '📊 Total score: -- / 15';
+        updateAnswerFlag();
+        if (isLocked) {
+            alert('All answers cleared. To unlock worksheet please use teacher password.');
         } else {
-            document.getElementById('password-error').style.display = 'block';
+            // optionally reset any lock flags
         }
     }
-
-    // --- SECURITY MONITORING ---
-
-    // 1. Detect if the user switches tabs or minimizes the window
-    document.addEventListener("visibilitychange", function() {
-        if (document.hidden && document.getElementById('exam-content').style.display === 'block') {
-            lockActivity();
-            alert("Activity Locked: You left the page during the exam.");
+    document.getElementById('resetBtn').addEventListener('click', resetAllFields);
+    
+    // sample friends
+    document.getElementById('showSampleFriends').addEventListener('click', () => {
+        document.getElementById('sampleFriendsDiv').innerHTML = `📌 Example: (old) → "Anna isn't as old as Luis."<br>✨ (friendly) → "Maria is as friendly as Sofia."`;
+    });
+    
+    // block right-click and developer shortcuts for security (standard)
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J')) || (e.ctrlKey && e.key === 'u') || (e.ctrlKey && e.key === 'r') || (e.metaKey && e.key === 'r')) {
+            e.preventDefault();
+            if ((e.ctrlKey && e.key === 'r') || (e.metaKey && e.key === 'r')) {
+                e.preventDefault();
+                return false;
+            }
         }
     });
-
-    // 2. Detect if the window loses focus (e.g., clicking on another app or a popup)
-    window.addEventListener("blur", function() {
-        if (document.getElementById('exam-content').style.display === 'block') {
-            lockActivity();
-            alert("Activity Locked: Window lost focus.");
-        }
-    });
+    
+    // Initialize answer flag and check for any pre-existing lock from earlier session
+    updateAnswerFlag();
+    if (localStorage.getItem('worksheet_status') === 'locked') {
+        lockPage('initial load from localStorage locked state');
+    }
 </script>
 </body>
 </html>
