@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!--DOCTYPE html-->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -414,7 +414,7 @@
 <script>
     // ======================== PASSWORD & LOCK MECHANISM (ENHANCED with features from best Exam General) ========================
     // Teacher password (as per best Exam General style, but keeping original theme)
-    const TEACHER_PASSWORD = "teacher123";   // default secure word (can be changed)
+    const TEACHER_PASSWORD = "2020";   // default secure word (can be changed)
     
     let isLocked = false;
     let lockTriggeredByResult = false;
