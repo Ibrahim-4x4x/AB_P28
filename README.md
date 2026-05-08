@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!--DOCTYPE html-->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -412,106 +412,18 @@
 </div>
 
 <script>
-    // ======================== PASSWORD & LOCK MECHANISM ========================
-    // Teacher password (change as needed)
-    const TEACHER_PASSWORD = "teacher123";   // default secure word
-    
-    let isLocked = false;
-    let lockTriggeredByResult = false;    // flag to know if result button caused lock
-    let resultWasClicked = false;          // internal: result button clicked (to prevent auto-lock from visibility?)
-    
-    const lockOverlay = document.getElementById('lockOverlay');
-    const passwordInput = document.getElementById('passwordInput');
-    const unlockBtn = document.getElementById('unlockBtn');
-    const lockErrorMsg = document.getElementById('lockErrorMsg');
-    
-    // Function to lock the page (show password wall, blur worksheet)
-    function lockPage(reason = "generic") {
-        if (isLocked) return;
-        isLocked = true;
-        document.body.classList.add('locked');
-        lockOverlay.style.display = 'flex';
-        // store lock reason for debugging (optional)
-        console.log(`🔒 Locked due to: ${reason}`);
-        lockErrorMsg.innerText = '';
-        passwordInput.value = '';
+    const TEACHER_SECRET = "0101"; 
+
+function startExam() {
+    // Check if already locked before starting
+    if (localStorage.getItem("unit7_status") === "locked") {
+        showLockScreen();
+        return;
     }
-    
-    // Unlock the page
-    function unlockPage() {
-        if (!isLocked) return;
-        const entered = passwordInput.value.trim();
-        if (entered === TEACHER_PASSWORD) {
-            isLocked = false;
-            lockTriggeredByResult = false;
-            resultWasClicked = false;
-            document.body.classList.remove('locked');
-            lockOverlay.style.display = 'none';
-            lockErrorMsg.innerText = '';
-            // after unlocking, we consider the session "recovered". 
-            // we keep the answers saved, just remove blur.
-        } else {
-            lockErrorMsg.innerText = '❌ Incorrect password. Access denied.';
-            passwordInput.value = '';
-        }
-    }
-    
-    unlockBtn.addEventListener('click', unlockPage);
-    passwordInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') unlockPage();
-    });
-    
-    // ========== PAGE LEAVE / MINIMIZE / VISIBILITY LOCK ==========
-    // 1) Beforeunload: leaving page (refresh, close, navigate)
-    let hasAnswersBeforeLeave = false;
-    function checkAnyAnswer() {
-        // check radios
-        for (let i = 1; i <= 6; i++) {
-            let radios = document.querySelectorAll(`input[name="q${i}"]`);
-            for (let r of radios) if (r.checked) return true;
-        }
-        const textInputs = document.querySelectorAll('input[type="text"], input.field-input');
-        for (let inp of textInputs) if (inp.value.trim() !== "") return true;
-        return false;
-    }
-    
-    function updateAnswerFlag() { hasAnswersBeforeLeave = checkAnyAnswer(); }
-    document.addEventListener('change', updateAnswerFlag);
-    document.addEventListener('input', updateAnswerFlag);
-    
-    window.addEventListener('beforeunload', function(e) {
-        if (hasAnswersBeforeLeave && !isLocked) {
-            // Instead of just warning, we lock immediately before unload is too late?
-            // But we can set a session flag and lock on next load? better: lock via visibility?
-            // However, beforeunload can't fully lock inside same event. So we store a flag in sessionStorage
-            sessionStorage.setItem('pendingLockOnReload', 'true');
-        }
-    });
-    
-    // 2) Visibility API: if student minimizes tab OR switches to another tab → lock immediately
-    document.addEventListener('visibilitychange', function() {
-        if (document.hidden && !isLocked && hasAnswersBeforeLeave) {
-            // student minimized tab / switched away
-            lockPage('tab minimize / switch');
-        }
-    });
-    
-    // 3) On page load, check if we need to lock due to a previous reload attempt
-    window.addEventListener('load', function() {
-        updateAnswerFlag();
-        if (sessionStorage.getItem('pendingLockOnReload') === 'true') {
-            sessionStorage.removeItem('pendingLockOnReload');
-            if (!isLocked && hasAnswersBeforeLeave) {
-                lockPage('page reload/leave detected');
-            }
-        }
-    });
-    
-    // ========== RESULT ICON / BUTTON BEHAVIOR: LOCK AFTER SHOWING SCORES ==========
-    // We will modify the "Auto-Correct & Score" button: after displaying scores, if any answer exists, lock page.
-    const originalCheckBtn = document.getElementById('checkAllBtn');
-    // Keep answer keys same as original but attach extra lock after showing score
-    
+    document.getElementById('start-area').style.display = 'none';
+    document.getElementById('exam-content').style.display = 'block';
+}
+
     // ----- SCORING LOGIC (preserved from original) -----
     const listeningKey = { q1: 'a', q2: 'a', q3: 'b', q4: 'a', q5: 'a', q6: 'a' };
     const rewriteExpected = [
@@ -563,69 +475,44 @@
         return total;
     }
     
-    // new version: show score AND lock after if answers exist
-    function onResultClick() {
-        if (isLocked) return;
-        // compute scores first
-        const totalScore = computeAndDisplayScores();
-        // after showing result, lock the page (prevent repeat/cheat)
-        // but only if there is at least one answer (to avoid locking empty worksheet)
-        if (hasAnswersBeforeLeave || checkAnyAnswer()) {
-            lockTriggeredByResult = true;
-            lockPage('Result icon clicked - activity completed');
-        }
+    // Function to handle the locking state
+    function lockActivity() {
+        localStorage.setItem("unit7_status", "locked");
+        showLockScreen();
     }
-    
-    // Replace original click with new locking result button
-    const newCheckBtn = document.getElementById('checkAllBtn');
-    newCheckBtn.replaceWith(newCheckBtn.cloneNode(true));
-    const freshCheckBtn = document.getElementById('checkAllBtn');
-    freshCheckBtn.addEventListener('click', onResultClick);
-    
-    // Reset button: unlock page and clear fields
-    function resetAllFields() {
-        for (let i = 1; i <= 6; i++) {
-            document.querySelectorAll(`input[name="q${i}"]`).forEach(r => r.checked = false);
-        }
-        ['rewrite2','rewrite3','rewrite4','rewrite5'].forEach(id => document.getElementById(id).value = '');
-        ['gabTall','gabSports','gabMaths','gabHard','gabBad'].forEach(id => document.getElementById(id).value = '');
-        ['friendOld','friendFriendly','friendArt','friendLang','friendEasy','friendConfident'].forEach(id => document.getElementById(id).value = '');
-        document.getElementById('listeningFeedback').innerHTML = '';
-        document.getElementById('rewriteFeedback').innerHTML = '';
-        document.getElementById('gabrielFeedback').innerHTML = '';
-        document.getElementById('sampleFriendsDiv').innerHTML = '';
-        document.getElementById('totalScoreArea').innerHTML = '📊 Total score: -- / 15';
-        updateAnswerFlag();
-        // If locked, unlock only if reset triggered (teacher assistance)
-        if (isLocked) {
-            // but we require password anyway; we allow password unlock or we can force unlock? For reset we don't auto-unlock without password.
-            // However, for reset we show alert maybe
-            alert('All answers cleared. To unlock please use password.');
+
+    function showLockScreen() {
+        document.getElementById('exam-content').style.display = 'none';
+        document.getElementById('start-area').style.display = 'none';
+        document.getElementById('lock-screen').style.display = 'block';
+    }
+
+    function unlockExam() {
+        if (document.getElementById('teacher-password').value === TEACHER_SECRET) {
+            localStorage.removeItem("unit7_status");
+            location.reload();
         } else {
-            // unlock any potential flag but not needed
+            document.getElementById('password-error').style.display = 'block';
         }
     }
-    document.getElementById('resetBtn').addEventListener('click', resetAllFields);
-    
-    // sample friends
-    document.getElementById('showSampleFriends').addEventListener('click', () => {
-        document.getElementById('sampleFriendsDiv').innerHTML = `📌 Example: (old) → "Anna isn't as old as Luis."<br>✨ (friendly) → "Maria is as friendly as Sofia."`;
-    });
-    
-    // Initialize flag and block right-click / shortcuts also for security
-    document.addEventListener('contextmenu', e => e.preventDefault());
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J')) || (e.ctrlKey && e.key === 'u') || (e.ctrlKey && e.key === 'r') || (e.metaKey && e.key === 'r')) {
-            e.preventDefault();
-            if ((e.ctrlKey && e.key === 'r') || (e.metaKey && e.key === 'r')) {
-                // refresh attempt also triggers lock via beforeunload but stop immediate
-                e.preventDefault();
-                return false;
-            }
+
+    // --- SECURITY MONITORING ---
+
+    // 1. Detect if the user switches tabs or minimizes the window
+    document.addEventListener("visibilitychange", function() {
+        if (document.hidden && document.getElementById('exam-content').style.display === 'block') {
+            lockActivity();
+            alert("Activity Locked: You left the page during the exam.");
         }
     });
-    updateAnswerFlag();
-    // optionally prevent accidental lock display on fresh start (no answers)
+
+    // 2. Detect if the window loses focus (e.g., clicking on another app or a popup)
+    window.addEventListener("blur", function() {
+        if (document.getElementById('exam-content').style.display === 'block') {
+            lockActivity();
+            alert("Activity Locked: Window lost focus.");
+        }
+    });
 </script>
 </body>
 </html>
